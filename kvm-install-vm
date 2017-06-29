@@ -243,7 +243,9 @@ runcmd:
   - [ yum, -y, remove, cloud-init ]
 _EOF_
 
-cat >> $USER_DATA << _EOF_
+    if [ ! -z "${STATICIP+x}" ]
+    then
+        cat >> $USER_DATA << _EOF_
 
 write_files:
   - content: |
@@ -261,8 +263,8 @@ write_files:
     owner: root:root
     path: /etc/sysconfig/network-scripts/ifcfg-eth0
     permission: '0644'
-
 _EOF_
+    fi
 
     echo "instance-id: ${VMNAME}; local-hostname: ${VMNAME}" > $META_DATA
 
