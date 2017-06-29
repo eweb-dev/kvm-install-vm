@@ -9,7 +9,7 @@ function usage {
     echo "OPTIONS"
     echo "  -c          Number of vCPUs     (default: 1)"
     echo "  -m          Memory Size (MB)    (default: 1024)"
-    echo "  -d          Disk Size (GB)      (default: 10)"
+    echo "  -d          Disk Size (GB)      (default: 20)"
     echo "  -t          Linux Distribution  (default: centos7)"
     echo "  -l          Location of Images  (default: /var/lib/libvert/images)"
     echo "  -k          SSH Public Key      (default: /root/.ssh/id_rsa.pub)"
@@ -46,7 +46,7 @@ OPTIND=1
 
 CPUS=1                          # Number of virtual CPUs
 MEMORY=1024                     # Amount of RAM in MB
-DISK_SIZE=10                    # Disk Size in GB
+DISK_SIZE=20                    # Disk Size in GB
 RESIZE_DISK=false               # Resize disk (boolean)
 IMAGEDIR=/var/lib/libvirt/images # Directory to store images
 BRIDGE=br0                      # Hypervisor bridge
