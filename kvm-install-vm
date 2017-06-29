@@ -14,6 +14,7 @@ function usage {
     echo "  -l          Location of Images  (default: /var/lib/libvert/images)"
     echo "  -k          SSH Public Key      (default: /root/.ssh/id_rsa.pub)"
     echo "  -b          Bridge              (default: br0)"
+    echo "  -s          Static IP Address   (default: DHCP)"
     echo "  -h          Display help"
     echo "  -i          Custom QCOW2 Image"
     echo "  -n vmname   Name of VM to create"
@@ -29,7 +30,7 @@ function usage {
     echo "  $prog -n foo"
     echo ""
     echo "Create VM with custom params:"
-    echo "  $prog -c 2 -m 2048 -d 20 -n foo"
+    echo "  $prog -c 2 -m 2048 -d 20 -s 10.20.1.99 -n foo"
     echo ""
     echo "Remove (destroy and undefine) a VM:"
     echo "  $prog -r foo"
@@ -56,7 +57,7 @@ DISTRO=centos7                  # Distribution
 # Parse command line arguments
 #--------------------------------------------------
 
-while getopts ":c:m:d:t:l:k:b:n:r:i:h" opt; do
+while getopts ":c:m:d:t:l:k:b:n:r:i:s:h" opt; do
     case "$opt" in
         c   ) CPUS="${OPTARG}" ;;
         m   ) MEMORY="${OPTARG}" ;;
@@ -65,6 +66,7 @@ while getopts ":c:m:d:t:l:k:b:n:r:i:h" opt; do
         n   ) VMNAME="${OPTARG}" ;;
         k   ) PUBKEY="${OPTARG}" ;;
         b   ) BRIDGE="${OPTARG}" ;;
+        s   ) STATICIP="${OPTARG}" ;;
         i   ) IMAGE="${OPTARG}" ;;
         r   ) VMDEL="${OPTARG}" ;;
         d   )
@@ -234,9 +236,32 @@ ssh_genkeytypes: ['ed25519', 'rsa']
 ssh_authorized_keys:
   - ${KEY}
 
-# Remove cloud-init when finished with it
 runcmd:
+  # Restart network to update IP config
+  - systemctl restart network
+  # Remove cloud-init when finished with it
   - [ yum, -y, remove, cloud-init ]
+_EOF_
+
+cat >> $USER_DATA << _EOF_
+
+write_files:
+  - content: |
+      DEVICE="eth0"
+      BOOTPROTO="static"
+      IPADDR="${STATICIP}"
+      NETMASK="255.255.255.0"
+      GATEWAY="10.20.1.1"
+      ONBOOT="yes"
+      TYPE="Ethernet"
+      USERCTL="yes"
+      PEERDNS="yes"
+      IPV6INIT="no"
+      PERSISTENT_DHCLIENT="1"
+    owner: root:root
+    path: /etc/sysconfig/network-scripts/ifcfg-eth0
+    permission: '0644'
+
 _EOF_
 
     echo "instance-id: ${VMNAME}; local-hostname: ${VMNAME}" > $META_DATA
@@ -297,19 +322,6 @@ _EOF_
     # Remove the unnecessary cloud init files
     rm $USER_DATA $META_DATA $CI_ISO
 
-    MAC=$(virsh dumpxml ${VMNAME} | awk -F\' '/mac address/ {print $2}')
-    while true
-    do
-        IP=$(grep -B1 $MAC /var/lib/libvirt/dnsmasq/$BRIDGE.status | head \
-             -n 1 | awk '{print $2}' | sed -e s/\"//g -e s/,//)
-        if [ "$IP" = "" ]
-        then
-            sleep 1
-        else
-            break
-        fi
-    done
-
-    echo "$(date -R) DONE. SSH to ${VMNAME} using $IP with  username '${LOGIN_USER}'."
+    echo "$(date -R) DONE. SSH to ${VMNAME} using ${STATICIP} with  username '${LOGIN_USER}'."
 
 popd > /dev/null
