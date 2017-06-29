@@ -224,6 +224,9 @@ preserve_hostname: False
 hostname: ${VMNAME}
 fqdn: ${VMNAME}.example.local
 
+# Timezone
+timezone: America/Vancouver
+
 # Configure where output will go
 output: 
   all: ">> /var/log/cloud-init.log"
