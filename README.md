@@ -1,7 +1,7 @@
 ## kvm-install-vm
 
 A bash wrapper around virt-install to build virtual machines on a local KVM
-hypervisor.  Tested on Fedora 25.
+hypervisor.  Tested on CentOS 7.
 
 ### Usage
 
@@ -11,9 +11,9 @@ OPTIONS
   -m          Memory Size (MB)    (default: 1024)
   -d          Disk Size (GB)      (default: 10)
   -t          Linux Distribution  (default: centos7)
-  -l          Location of Images  (default: /home/giovanni/virt/images)
-  -k          SSH Public Key      (default: /home/giovanni/.ssh/id_rsa.pub)
-  -b          Bridge              (default: virbr0)
+  -l          Location of Images  (default: /var/lib/libvert/images)
+  -k          SSH Public Key      (default: /root/.ssh/id_rsa.pub)
+  -b          Bridge              (default: br0)
   -h          Display help
   -i          Custom QCOW2 Image
   -n vmname   Name of VM to create
