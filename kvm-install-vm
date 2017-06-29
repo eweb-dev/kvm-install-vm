@@ -239,9 +239,20 @@ ssh_genkeytypes: ['ed25519', 'rsa']
 ssh_authorized_keys:
   - ${KEY}
 
+# Common packages
+packages:
+  - git
+  - vim-enhanced
+  - ntp
+
 runcmd:
   # Restart network to update IP config
   - systemctl restart network
+  # Setup git
+  - git config --global color.ui auto
+  # ntpd
+  - systemctl start ntpd
+  - systemctl enable ntpd
   # Remove cloud-init when finished with it
   - [ yum, -y, remove, cloud-init ]
 _EOF_
