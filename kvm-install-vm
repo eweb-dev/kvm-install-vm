@@ -253,6 +253,9 @@ runcmd:
   # ntpd
   - systemctl start ntpd
   - systemctl enable ntpd
+  # Disable SELinux
+  - sed -i "s/SELINUX=enforcing/SELINUX=disabled/g" /etc/selinux/config
+  - setenforce 0
   # Remove cloud-init when finished with it
   - [ yum, -y, remove, cloud-init ]
 _EOF_
