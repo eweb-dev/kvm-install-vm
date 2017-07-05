@@ -14,7 +14,7 @@ function usage {
     echo "  -l          Location of Images  (default: /var/lib/libvert/images)"
     echo "  -k          SSH Public Key      (default: /root/.ssh/id_rsa.pub)"
     echo "  -b          Bridge              (default: br0)"
-    echo "  -s          Static IP Address   (default: DHCP)"
+    echo "  -u          User-data script    (default: user-data/default.yml)"
     echo "  -h          Display help"
     echo "  -i          Custom QCOW2 Image"
     echo "  -n vmname   Name of VM to create"
@@ -51,13 +51,14 @@ RESIZE_DISK=false               # Resize disk (boolean)
 IMAGEDIR=/var/lib/libvirt/images # Directory to store images
 BRIDGE=br0                      # Hypervisor bridge
 PUBKEY=/root/.ssh/id_rsa.pub    # SSH public key
+USERFILE=user-data/default.yml  # User-data cloud-init file
 DISTRO=centos7                  # Distribution
 
 #--------------------------------------------------
 # Parse command line arguments
 #--------------------------------------------------
 
-while getopts ":c:m:d:t:l:k:b:n:r:i:s:h" opt; do
+while getopts ":c:m:d:t:l:k:b:n:r:i:u:h" opt; do
     case "$opt" in
         c   ) CPUS="${OPTARG}" ;;
         m   ) MEMORY="${OPTARG}" ;;
@@ -66,8 +67,8 @@ while getopts ":c:m:d:t:l:k:b:n:r:i:s:h" opt; do
         n   ) VMNAME="${OPTARG}" ;;
         k   ) PUBKEY="${OPTARG}" ;;
         b   ) BRIDGE="${OPTARG}" ;;
-        s   ) STATICIP="${OPTARG}" ;;
         i   ) IMAGE="${OPTARG}" ;;
+        u   ) USERFILE="${OPTARG}" ;;
         r   ) VMDEL="${OPTARG}" ;;
         d   )
             if [ "${OPTARG}" -gt ${DISK_SIZE} ]; then
@@ -174,6 +175,14 @@ function check_ssh_key {
     fi
 }
 
+function check_userdata {
+    if [ ! -f "${USERFILE}" ]
+    then
+        echo "$(date -R) [ERROR] Please specify a user-data cloud-init file with the "-u" flag."
+        exit 3
+    fi
+}
+
 # cloud-init variables
 USER_DATA=user-data
 META_DATA=meta-data
@@ -181,6 +190,7 @@ CI_ISO=${VMNAME}-cidata.iso
 
 # Call functions
 check_ssh_key
+check_userdata
 
 if [ ! -z "${IMAGE+x}" ]
 then
@@ -209,79 +219,13 @@ fi
 rm -rf ${IMAGEDIR}/${VMNAME}
 mkdir -p ${IMAGEDIR}/${VMNAME}
 
+# Copy user-data cloud-init file
+cp $USERFILE ${IMAGEDIR}/${VMNAME}/${USER_DATA}
+
 pushd ${IMAGEDIR}/${VMNAME} > /dev/null
 
     # Create log file
     touch ${VMNAME}.log
-
-    # cloud-init config: set hostname, remove cloud-init package,
-    # and add ssh-key 
-    cat > $USER_DATA << _EOF_
-#cloud-config
-
-# Hostname management
-preserve_hostname: False
-hostname: ${VMNAME}
-fqdn: ${VMNAME}.example.local
-
-# Timezone
-timezone: America/Vancouver
-
-# Configure where output will go
-output: 
-  all: ">> /var/log/cloud-init.log"
-
-# configure interaction with ssh server
-ssh_genkeytypes: ['ed25519', 'rsa']
-
-# Install my public ssh key to the first user-defined user configured 
-# in cloud.cfg in the template (which is centos for CentOS cloud images)
-ssh_authorized_keys:
-  - ${KEY}
-
-# Common packages
-packages:
-  - git
-  - vim-enhanced
-  - ntp
-
-runcmd:
-  # Restart network to update IP config
-  - systemctl restart network
-  # Setup git
-  - git config --global color.ui auto
-  # ntpd
-  - systemctl start ntpd
-  - systemctl enable ntpd
-  # Disable SELinux
-  - sed -i "s/SELINUX=enforcing/SELINUX=disabled/g" /etc/selinux/config
-  - setenforce 0
-  # Remove cloud-init when finished with it
-  - [ yum, -y, remove, cloud-init ]
-_EOF_
-
-    if [ ! -z "${STATICIP+x}" ]
-    then
-        cat >> $USER_DATA << _EOF_
-
-write_files:
-  - content: |
-      DEVICE="eth0"
-      BOOTPROTO="static"
-      IPADDR="${STATICIP}"
-      NETMASK="255.255.255.0"
-      GATEWAY="10.20.1.1"
-      ONBOOT="yes"
-      TYPE="Ethernet"
-      USERCTL="yes"
-      PEERDNS="yes"
-      IPV6INIT="no"
-      PERSISTENT_DHCLIENT="1"
-    owner: root:root
-    path: /etc/sysconfig/network-scripts/ifcfg-eth0
-    permission: '0644'
-_EOF_
-    fi
 
     echo "instance-id: ${VMNAME}; local-hostname: ${VMNAME}" > $META_DATA
 
@@ -341,6 +285,6 @@ _EOF_
     # Remove the unnecessary cloud init files
     rm $USER_DATA $META_DATA $CI_ISO
 
-    echo "$(date -R) DONE. SSH to ${VMNAME} using ${STATICIP} with  username '${LOGIN_USER}'."
+    echo "$(date -R) DONE."
 
 popd > /dev/null

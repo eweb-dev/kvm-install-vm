@@ -1,0 +1,4 @@
+# Ignore user-data cloud-init scripts except the included default
+/user-data/*
+!/user-data/default.yml
+
