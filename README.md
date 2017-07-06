@@ -40,17 +40,23 @@ Remove (destroy and undefine) a VM:
 - This will download a cloud image from the CentOS site if the default QCOW2
   image doesn't exist.
 
-### Use Cases
+### Expanding Virtual Machine Disks
+1. Shut down the VM 
+2. Resize the file system
+3. Verify the file system has expanded
+4. Boot the VM again
 
-If you don't need to use Docker or Vagrant, don't want to make changes to a
-production machine, and just want to spin up one or more VMs locally to test
-things like:
+```bash
+virsh shutdown guest
+cd /var/lib/libvirt/images/guest
+qemu-img resize guest.qcow2 +20G
+cp guest.qcow2 guest-orig.qcow2
+virt-resize --expand /dev/sda1 guest-orig.qcow2 guest.qcow2
+virt-filesystems --long -h --all -a guest.qcow2
+virsh start guest
+```
 
-- high availability
-- clustering
-- package installs
-- preparing for exams
-- checking for system defaults
-- anything else you would do with a VM
-
-...then this wrapper could be useful for you.
+Next, log into the VM and run the following to expand the partition
+```bash
+sudo xfs_growfs /
+```
