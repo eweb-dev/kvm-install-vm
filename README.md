@@ -60,3 +60,5 @@ Next, log into the VM and run the following to expand the partition
 ```bash
 sudo xfs_growfs /
 ```
+
+If everything works then the `guest-orig.qcow2` file can be deleted.
